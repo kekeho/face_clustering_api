@@ -2,3 +2,5 @@ env/
 .vscode/
 images/
 __pycache__/
+log_dir/
+autoencoder_file_encodings.pkl
