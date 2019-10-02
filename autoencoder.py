@@ -3,11 +3,19 @@ import face_recognition
 import os
 from glob import glob
 from PIL import Image
+import matplotlib.pyplot as plt
+import matplotlib
+import random
+from functools import reduce
 
-from keras.layers import Input, Dense
+from keras.layers import Input, Dense, Dropout
 from keras.models import Model
 import pickle
 from keras.callbacks import TensorBoard
+from keras import backend as K
+
+
+matplotlib.use('pdf')
 
 
 def _check_same_shape(images: np.array):
@@ -20,33 +28,28 @@ def _check_same_shape(images: np.array):
 
 
 def gen_autoencoder(input_dim, encoding_dim) -> Model:
-    """Generate simple autoencoder
-    Args:
-        input_dim: input shape
-        encoding_dim: encoded shape
-    
-    Returns:
-        (autoencoder, encoder)
     """
-    input_face_encoding = Input(shape=(input_dim,))
+        モデル生成
+    """
+    input_img = Input(shape=(input_dim,))
 
-    # Encode
-    encoded = Dense(encoding_dim, activation='relu')(input_face_encoding)
-    encoder = Model(input_face_encoding, encoded)
+    #  Encode部分
+    encoded = Dense(64, activation='relu')(input_img)
+    encoded = Dense(32, activation='relu')(encoded)
+    encoded = Dense(16, activation='relu')(encoded)
+    encoded = Dense(encoding_dim)(encoded)
 
-    # Decode
-    decoded = Dense(input_dim, activation='relu')(encoded)
+    #  Decode部分
+    decoded = Dense(16, activation='relu')(encoded)
+    decoded = Dense(32, activation="relu")(decoded)
+    decoded = Dense(64, activation="relu")(decoded)
+    decoded = Dense(128)(decoded)
 
-    autoencoder = Model(input_face_encoding, decoded)
+    #  Model
+    autoencoder = Model(input_img, decoded)
+    autoencoder.compile(optimizer="Adam", loss='mse')
 
-    encoded_input = Input(shape=(encoding_dim,))
-    decoder_layer = autoencoder.layers[-1]
-    decoder = Model(encoded_input, decoder_layer(encoded_input))
-
-    # Compile
-    autoencoder.compile(optimizer='Adam', loss='binary_crossentropy')
-
-    return (autoencoder, encoder, decoder)
+    return autoencoder
 
 
 def load_lfw(lfw_dir_path: os.PathLike) -> tuple:
@@ -89,16 +92,59 @@ def load_lfw(lfw_dir_path: os.PathLike) -> tuple:
 
 def main():
     x_train, x_test = load_lfw('./images/lfw')
-    autoencoder, encoder, decoder = gen_autoencoder(x_train.shape[1], 3)
 
-    autoencoder.fit(x_train, x_train, epochs=1000, batch_size=1024, shuffle=True, validation_data=(x_test, x_test), callbacks=[TensorBoard(log_dir='log_dir')])
+    # Normalize
+    x_train += abs(x_train.min()) if x_train.min() < 0 else 0
+    x_test += abs(x_test.min()) if x_test.min() < 0 else 0
 
-    encoded_array = encoder.predict(x_test)
-    print(encoded_array.shape)
-    decoded_array = decoder.predict(encoded_array)
+    noise_factor = 0.1
+    x_train_noised = x_train + noise_factor * np.random.normal(loc=0., scale=x_train.max(), size=x_train.shape)
 
-    for test, decoded in zip(x_test[:5], decoded_array[5:]):
-        print(decoded - test)
+    autoencoder = gen_autoencoder(x_train.shape[1], 3)
+    print(autoencoder)
+
+    autoencoder.fit(x_train_noised, x_train, epochs=2000, batch_size=512, shuffle=True, validation_data=(x_test, x_test), callbacks=[TensorBoard(log_dir='log_dir')])
+
+    x_test_noised = x_test + noise_factor * np.random.normal(loc=0., scale=x_train.max(), size=x_test.shape)
+    # decoded_array = autoencoder.predict(x_test_noised)
+
+    encoder = Model(inputs=autoencoder.input, outputs=autoencoder.layers[4].output)
+    encoded = encoder.predict(x_test_noised)
+
+    
+    encoded_input = Input(shape=(3,))
+    decoder_layer = autoencoder.layers[5](encoded_input)
+    for l in autoencoder.layers[6:]:
+        decoder_layer = l(decoder_layer)
+    decoder = Model(encoded_input, decoder_layer)
+    decoded_array = decoder.predict(encoded)
+
+
+    n = 5
+    image_test = x_test.reshape(x_test.shape[0], 8, 16)
+    image_test_noised = x_test_noised.reshape(x_test_noised.shape[0], 8, 16)
+    image_encoded = encoded.reshape(encoded.shape[0], 1, 3)
+    image_decoded = decoded_array.reshape(decoded_array.shape[0], 8, 16)
+
+    plt.figure(figsize=(20, 10))
+    for i in range(n):
+        index = random.randint(0, x_test.shape[0]-1)
+        plt.subplot(4, n, i+1)
+        plt.imshow(image_test[index])
+
+        plt.subplot(4, n, i+1+n)
+        plt.imshow(image_test_noised[index])
+        
+        plt.subplot(4, n, i+1+2*n)
+        plt.imshow(image_encoded[index])
+
+        plt.subplot(4, n, i+1+3*n)
+        plt.imshow(image_decoded[index])
+
+    print(encoded[:n])
+    
+    plt.savefig('hoge.pdf')
+
 
 
 if __name__ == "__main__":
