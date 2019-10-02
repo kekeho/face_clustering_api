@@ -16,6 +16,14 @@ import numpy as np
 from PIL import Image
 from typing import List
 
+def _check_same_shape(images: np.array):
+    first = images[0].shape
+    for i in images[1:]:
+        if i.shape != first:
+            return False
+    
+    return True
+
 
 class FaceObj(object):
     def __init__(self, filename: str, location: np.array, id_array: np.array):
@@ -27,13 +35,13 @@ class FaceObj(object):
 
 
 class FacesCluster(object):
-    def __init__(self, images: List[Image.Image]):
+    def __init__(self, images: List[Image.Image], data_choice: str, n_neighbors: int, n_components: int):
         self.images = images
         self.np_images = list(map(np.asarray, self.images))
         self.filenames = list(map(lambda x: x.filename, self.images))
-        self.faces = self._calc_face_encoding(2, 3)
+        self.faces = self._calc_face_encoding(n_neighbors, n_components)
 
-        self._clustering(0.5, 1)
+        self._clustering(0.55, 1, data_choice)
         self.group = list(self)
         self.noise = [face for face in self.faces if face.group_id == -1]
 
@@ -51,7 +59,11 @@ class FacesCluster(object):
 
         # Calc face encodings
         faces_list = []
-        location_list = face_recognition.api.batch_face_locations(list(self.np_images))
+        if _check_same_shape(self.np_images):
+            location_list = face_recognition.api.batch_face_locations(list(self.np_images))
+        else:
+            location_list = [face_recognition.api.face_locations(img, model='cnn') for img in self.np_images]
+
         for image, locations, filename in zip(self.np_images, location_list, self.filenames):
             faces = face_recognition.face_encodings(image, locations)
             for face, location in zip(faces, locations):
@@ -67,9 +79,9 @@ class FacesCluster(object):
         return faces_list
 
 
-    def _clustering(self, eps: float, min_samples: int):
+    def _clustering(self, eps: float, min_samples: int, data_choice: str):
         db = DBSCAN(eps=eps, min_samples=min_samples)
-        db_cluster = db.fit([face.compressed_id for face in self.faces])
+        db_cluster = eval(f'db.fit([face.{data_choice} for face in self.faces])')
         for i, label in enumerate(db_cluster.labels_):
             self.faces[i].group_id = label
         
