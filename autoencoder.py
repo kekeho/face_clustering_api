@@ -97,13 +97,19 @@ def main():
     x_train += abs(x_train.min()) if x_train.min() < 0 else 0
     x_test += abs(x_test.min()) if x_test.min() < 0 else 0
 
-    noise_factor = 0.1
+    noise_factor = 0.01
     x_train_noised = x_train + noise_factor * np.random.normal(loc=0., scale=x_train.max(), size=x_train.shape)
+    # x_train_noised = x_train  # NO NOISE
 
     autoencoder = gen_autoencoder(x_train.shape[1], 3)
     print(autoencoder)
 
-    autoencoder.fit(x_train_noised, x_train, epochs=2000, batch_size=512, shuffle=True, validation_data=(x_test, x_test), callbacks=[TensorBoard(log_dir='log_dir')])
+    weights_file = 'autoencoder_weights.hdf5'
+    if os.path.exists(weights_file):
+        autoencoder.load_weights(weights_file)
+    else:
+        autoencoder.fit(x_train_noised, x_train, epochs=2000, batch_size=4098, shuffle=True, validation_data=(x_test, x_test), callbacks=[TensorBoard(log_dir='log_dir')])
+        autoencoder.save_weights(weights_file)
 
     x_test_noised = x_test + noise_factor * np.random.normal(loc=0., scale=x_train.max(), size=x_test.shape)
     # decoded_array = autoencoder.predict(x_test_noised)

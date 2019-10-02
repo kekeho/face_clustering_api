@@ -7,9 +7,9 @@ import matplotlib
 matplotlib.use('WebAgg')
 
 import face_recognition
-import umap
 from scipy.sparse.csgraph import connected_components
 from sklearn.cluster import DBSCAN
+from sklearn.manifold import TSNE
 from matplotlib import pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
@@ -71,7 +71,7 @@ class FacesCluster(object):
                 faces_list.append(face_obj)
         
         # Downsizing face encodings 128d to 3d
-        fit = umap.UMAP(n_neighbors=n_neighbors, n_components=n_components)
+        fit = TSNE(n_components=n_components)
         compressed = fit.fit_transform([x.id_array for x in faces_list])
         for i, comp in enumerate(compressed):
             faces_list[i].compressed_id = comp
@@ -89,17 +89,14 @@ class FacesCluster(object):
 
 
     def plot(self):
-        fig = plt.figure()
-        ax = Axes3D(fig)
-
         # Plot point
         for faces in self:
             points = np.array([face.compressed_id for face in faces])
-            ax.scatter3D(points[:, 0], points[:, 1], points[:, 2])
+            plt.plot(points[:, 0], points[:, 1])
 
-            for face in faces:
-                (x, y, z) = face.compressed_id
-                ax.text(x, y, z, str(face.location) + ' ' + face.filename)
+            # for face in faces:
+                # (x, y) = face.compressed_id
+                # plt.text(x, y, face.filename.split('/')[-2])
 
             # Print Group
             print('Group', faces[0].group_id)
@@ -112,4 +109,4 @@ class FacesCluster(object):
         for face in self.noise:
             print(face.location, face.filename)
         
-        plt.show()
+        plt.savefig('face_group.pdf')
