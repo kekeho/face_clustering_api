@@ -41,7 +41,7 @@ class FacesCluster(object):
         self.filenames = list(map(lambda x: x.filename, self.images))
         self.faces = self._calc_face_encoding(n_neighbors, n_components)
 
-        self._clustering(0.55, 1, data_choice)
+        self._clustering(0.6, 1, data_choice)
         self.group = list(self)
         self.noise = [face for face in self.faces if face.group_id == -1]
 
@@ -92,11 +92,11 @@ class FacesCluster(object):
         # Plot point
         for faces in self:
             points = np.array([face.compressed_id for face in faces])
-            plt.plot(points[:, 0], points[:, 1])
+            plt.plot(points[:, 0], points[:, 1], markersize=0.05)
 
-            # for face in faces:
-                # (x, y) = face.compressed_id
-                # plt.text(x, y, face.filename.split('/')[-2])
+            for face in faces:
+                (x, y) = face.compressed_id
+                plt.text(x, y, face.filename.split('/')[-2], fontsize=0.1)
 
             # Print Group
             print('Group', faces[0].group_id)
