@@ -41,7 +41,7 @@ class FacesCluster(object):
         self.filenames = list(map(lambda x: x.filename, self.images))
         self.faces = self._calc_face_encoding(n_neighbors, n_components)
 
-        self._clustering(0.6, 1, data_choice)
+        self._clustering(0.55, 1, data_choice)
         self.group = list(self)
         self.noise = [face for face in self.faces if face.group_id == -1]
 

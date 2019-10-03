@@ -12,6 +12,9 @@ pickle_file = 'test_lfw_cluster.pkl'
 if os.path.exists(pickle_file):
     with open(pickle_file, 'rb') as f:
         faces_cluster = pickle.load(f)
+    
+    # Re clustering
+    faces_cluster._clustering(0.55, 1, 'compressed_id')
 else:
     images = [Image.open(i) for i in filelist]
     faces_cluster = FacesCluster(images, 'compressed_id', 1, 2)
