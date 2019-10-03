@@ -3,6 +3,7 @@ from PIL import Image
 from glob import glob
 from face_group import FacesCluster
 import pickle
+from collections import Counter
 
 
 images_dir = os.path.join(os.path.dirname(__file__), 'images/lfw/*')
@@ -21,4 +22,14 @@ else:
     with open(pickle_file, 'wb') as f:
         pickle.dump(faces_cluster, f)
 
-faces_cluster.plot()
+
+# faces_cluster.plot()
+print('CLUSTER LEN', faces_cluster.cluster_len)
+print('JUNK COUNT', faces_cluster.junk_count)
+print('JUNK PER', faces_cluster.junk_per)
+print('NOISE PER AVERAGE', faces_cluster.noise_per_average)
+
+# Duplicate cluster count
+groups = [g.suggested_name for g in faces_cluster.group if g.status == 'GOOD']
+duplicate_count = len([None for k, v in Counter(groups).items() if v > 1])
+print('DUPLICATE', duplicate_count)
